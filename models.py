@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from layers import GraphAttentionLayer
+from layers import GraphAttentionLayer, LinearRegressionLayer
 
 
 class GAT(nn.Module):
@@ -19,4 +19,22 @@ class GAT(nn.Module):
         x = F.dropout(x, self.dropout, training=self.training)
         x = F.elu(self.out_att(x, adj))
         return x
+
+
+class STGAT(nn.Module):
+    def __init__(self, nfeat, nhid, dropout, alpha):
+        super(STGAT, self).__init__()
+        self.dropout = dropout
+        self.att1 = GraphAttentionLayer(nfeat, nhid, dropout, alpha)
+        self.att2 = GraphAttentionLayer(nhid, nhid, dropout, alpha)
+        self.lr = LinearRegressionLayer(nhid, int(nhid/2))
+
+    def forward(self, x, adj):
+        x = F.dropout(x, self.dropout, training=self.training)
+        x = self.att1(x, adj)
+        x = F.dropout(x, self.dropout, training=self.training)
+        x = self.att2(x, adj)
+        x = F.dropout(x, self.dropout, training=self.training)
+        out = self.lr(x)
+        return out
 

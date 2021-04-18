@@ -16,8 +16,8 @@ class GraphAttentionLayer(nn.Module):
         # learnable parameters
         self.W = nn.Parameter(torch.empty(size=(in_dim, out_dim)))
         self.a = nn.Parameter(torch.empty(size=(2*out_dim, 1)))
-        nn.init.xavier_uniform(self.W.data, gain=1.414)
-        nn.init.xavier_uniform(self.a.data, gain=1.414)
+        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        nn.init.xavier_uniform_(self.a.data, gain=1.414)
         # activation
         self.leakyRelu = nn.LeakyReLU(alpha)
 
@@ -32,6 +32,10 @@ class GraphAttentionLayer(nn.Module):
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = torch.matmul(attention, Wh)
 
+        if self.concat:
+            return F.elu(h_prime)
+        else:
+            return h_prime
 
     def _prepare_attentional_mechanism_input(self, Wh):
         N = Wh.size()[0]
@@ -44,10 +48,14 @@ class GraphAttentionLayer(nn.Module):
         return self.__class__.__name__ + ' (' + str(self.in_dim) + ' -> ' + str(self.out_dim) + ')'
 
 
-"""TODOLIST: attention layer, single head
-"""
+class LinearRegressionLayer(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super(LinearRegressionLayer, self).__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.linear = nn.Linear(self.in_dim, self.out_dim)
+        nn.init.xavier_uniform_(self.linear.weight, gain=1.414)
 
-
-
-"""TODOLIST: attention layer, multiple head
-"""
+    def forward(self, x):
+        out = self.linear(x)
+        return out
