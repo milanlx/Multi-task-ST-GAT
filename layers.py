@@ -59,3 +59,54 @@ class LinearRegressionLayer(nn.Module):
     def forward(self, x):
         out = self.linear(x)
         return out
+
+
+class BatchedGraphAttentionLayer(nn.Module):
+    """modified based on: https://github.com/Diego999/pyGAT/blob/master/layers.py"""
+    def __init__(self, in_dim, out_dim, dropout, alpha, concat=True):
+        super(BatchedGraphAttentionLayer, self).__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+        self.dropout = dropout
+        self.alpha = alpha          # negative slope in leaky Relu
+        self.concat = concat
+        # learnable parameters
+        self.W = nn.Parameter(torch.empty(size=(in_dim, out_dim)))
+        self.a = nn.Parameter(torch.empty(size=(2*out_dim, 1)))
+        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        nn.init.xavier_uniform_(self.a.data, gain=1.414)
+        # activation
+        self.leakyRelu = nn.LeakyReLU(alpha)
+
+    def forward(self, h, adj):
+        # h: [b,n,m]; adj: [m,h]
+        Wh = torch.matmul(h, self.W)
+        a_input = self._prepare_attentional_mechanism_input(Wh)
+        e = self.leakyRelu(torch.matmul(a_input, self.a).squeeze(3))
+
+        zero_vec = -9e15*torch.ones_like(e)
+        attention = torch.where(adj>0, e, zero_vec)
+        attention = F.softmax(attention, dim=2)
+        attention = F.dropout(attention, self.dropout, training=self.training)
+        h_prime = torch.matmul(attention, Wh)
+
+        if self.concat:
+            return F.elu(h_prime)
+        else:
+            return h_prime
+
+    def _prepare_attentional_mechanism_input(self, Wh):
+        b, N = Wh.size()[0], Wh.size()[1]
+        Wh_repeated_in_chunks = Wh.repeat_interleave(N, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, N, 1)
+        all_combinations_matrix = torch.cat([Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2)
+        return all_combinations_matrix.view(b, N, N, 2 * self.out_dim)
+
+
+class MultiTaskLoss(nn.Module):
+    def __init__(self):
+        super(MultiTaskLoss, self).__init__()
+
+    def forward(self, input, target):
+        y = torch.square(torch.sum(input-target))/(input.size()[0]*input.size()[1])
+        return y
