@@ -18,6 +18,24 @@ def parser(x):
 	return datetime.strptime('190'+x, '%Y-%m')
 
 
+def construct_feature_df(df, n_prev, n_next):
+    columns = ['date_time', 'X', 'Y']
+    feat_df = pd.DataFrame(columns=columns)
+    n = len(df.index)
+    for i in range(n):
+        date_time = df.iloc[i]['date_time']
+        X = df.iloc[max(0,i-n_prev):i]['ele_increment'].to_numpy()
+        Y = df.iloc[i:min(i+n_next,n)]['ele_increment'].to_numpy()
+        # zero padding. X at head, Y at tail
+        if X.shape[0] < n_prev:
+            X = np.pad(X, (n_prev-X.shape[0],0), 'constant')
+        if Y.shape[0] < n_next:
+            Y = np.pad(Y, (0,n_next-Y.shape[0]), 'constant')
+        # need to revise
+        feat_df.loc[len(feat_df)] = [date_time, X, Y]
+    return feat_df
+
+
 def iterative_train(x_series, feat_len, method):
     """Return model
         - method: 'LR', 'RF'
