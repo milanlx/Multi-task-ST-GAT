@@ -18,6 +18,14 @@ def parser(x):
 	return datetime.strptime('190'+x, '%Y-%m')
 
 
+def min_max_normalize(df, col_names):
+    for col_name in col_names:
+        col_max = ele_df[col_name].max()
+        col_min = ele_df[col_name].min()
+        df[col_name] = df[col_name].apply(lambda x: (x-col_min)/(col_max-col_min))
+    return df
+
+
 def construct_feature_df(df, n_prev, n_next):
     columns = ['date_time', 'X', 'Y']
     feat_df = pd.DataFrame(columns=columns)
