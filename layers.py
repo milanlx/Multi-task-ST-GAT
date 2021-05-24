@@ -110,3 +110,6 @@ class MultiTaskLoss(nn.Module):
     def forward(self, input, target):
         y = torch.square(torch.sum(input-target))/(input.size()[0]*input.size()[1])
         return y
+
+
+
